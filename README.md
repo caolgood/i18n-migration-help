@@ -5,23 +5,23 @@ The following Regex/replace pairs can be dropped into your IDE to automatically 
 
 `(?:this\.)?i18n\([\s\/]*\{[\s\/]*meaning:[\s\n]*'(.*)',[\s\/]*description:[\s\n]*'(.*)',[\s\/]*value:[\s\n]*['`](.*)['`][\s\/]*\}[\s\/]*\)`
 
-\$localize `:$1|$2:$3`
+\\$localize \`:$1|$2:$3\`
 
 `(?:this\.)?i18n\([\s\/]*\{[\s\/]*meaning:[\s\n]*'(.*)',[\s\/]*value:[\s\n]*['`](.*)['`][\s\/]*\}[\s\/]*\)`
 
-\$localize `:$1:$2`
+\\$localize \`:$1:$2\`
 
 `(?:this\.)?i18n\([\s\/]*\{[\s\/]*description:[\s\n]*'(.*)',[\s\/]*value:[\s\n]*['`](.*)['`][\s\/]*\}[\s\/]*\)`
 
-\$localize `:$1:$2`
+\\$localize \`:$1:$2\`
 
 `(?:this\.)?i18n\([\s\/]*\{[\s\/]*value:[\s\n]*'(.*)',[\s\/]*description:[\s\n]*['`](.*)['`][\s\/]*\}[\s\/]*\)`
 
-\$localize `:$2:$1`
+\\$localize \`:$2:$1\`
 
 `(?:this\.)?i18n\([\s\/]*\{[\s\/]*value:[\s\n]*'(.*)',[\s\/]*meaning:[\s\n]*['`](.*)['`][\s\/]*\}[\s\/]*\)`
 
-\$localize `:$2:$1`
+\\$localize \`:$2:$1\`
 
 ## Migrate existing xlf files
 - Open `src/merge-xlf.js` and fill in the required inputs 
