@@ -25,5 +25,5 @@ The following Regex/replace pairs can be dropped into your IDE to automatically 
 
 ## Migrate existing xlf files
 - Open `src/merge-xlf.js` and fill in the required inputs 
-- run `yarn xlf-merge`
+- run `yarn merge-xlf`
 - You will probably have to keep tweaking your $localize strings, xlf files, or this script itself until you don't get any warnings.
