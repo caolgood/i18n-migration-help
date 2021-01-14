@@ -1,123 +1,78 @@
 const fs = require('fs');
-const xml2js = require('xml2js');
+const libxmljs = require('libxmljs');
 const path = require('path');
 
-(async function mergeTranslations() {
-	const xlfPaths = [
-			/** paths to folders containing translated xlf files */
-	];
-	const outputPath = /*Output directory*/ '';
-	const srcPath = /*Path to source messages.xlf*/'';
-	const localizeLangs = [/** language codes on xlf files to migrate*/]
+const ns = 'urn:oasis:names:tc:xliff:document:1.2';
 
-	if (xlfPaths.length === 0 || localizeLangs.length === 0 || !outputPath || !srcPath) {
-		console.log('Inputs not provided');
-		return;
-	}
+const xlfPaths = [
+  /** paths to folders containing translated xlf files */
+  'C:\\workspace\\SEPlatform\\simpleengagement-PR\\client\\src\\i18n-ts',
+  'C:\\workspace\\SEPlatform\\simpleengagement-PR\\client\\src\\i18n-html'
+];
+const outputPath = 'C:\\workspace\\SEPlatform\\simpleengagement\\client\\src\\i18n'/*Output directory*/;
+const srcPath = 'C:\\workspace\\SEPlatform\\simpleengagement\\client\\src\\i18n\\messages.xlf'/*Path to source messages.xlf*/;
+const localizeLangs = ['fr', 'da', 'de', 'nl', 'es', 'hr'/** language codes on xlf files to migrate*/];
 
-	try {
-		const srcFile = fs.readFileSync(srcPath, {encoding: "utf-8"});
-		const srcXlf = await new xml2js.Parser().parseStringPromise(srcFile);
-		const srcTranslations = getTranslations(srcXlf);
-		for (let lang of localizeLangs) {
-			let dest = 0
-			let matches = 0;
-
-			let targetLang= null;
-			let destTransUnits = '';
-			let header = '';
-			let footer = '';
-			for (let xlfPath of xlfPaths) {
-				const destPath = path.join(xlfPath, `messages.${lang}.xlf`);
-				let destFile = fs.readFileSync(destPath, {encoding: "utf-8"});
-				if (!header) {
-					header = destFile.match(/^.*<body>\s*/s)[0]
-				}
-				if (!footer) {
-					footer = destFile.match(/\s*<\/body>.*$/s)[0]
-				}
-				let transUnits = destFile.match(/<body>\s*(.*?)\s*<\/body>/s)[1];
-				const destXlf = await new xml2js.Parser().parseStringPromise(destFile);
-				targetLang = destXlf.xliff.file[0].$['target-language'];
-				traverseTranslations(destXlf, transUnit => {
-					dest++;
-					let destTranslation = parseTransUnit(transUnit);
-					const filtered = srcTranslations.filter(src =>
-						destTranslation.description === src.description &&
-						destTranslation.meaning === src.meaning);
-					let src;
-					if (filtered.length === 1) {
-						src = filtered[0];
-						matches++;
-						transUnits = transUnits.replace(transUnit.$.id, src.id);
-					} else if (filtered.length > 1) {
-						console.warn(`Multiple matches found for ${JSON.stringify({meaning: destTranslation.meaning, description: destTranslation.description})})}\n\
-${filtered.map(transUnit => JSON.stringify(transUnit.source)).join('\n')}\n`)
-					} else {
-						console.warn(`No match found for ${JSON.stringify({meaning: destTranslation.meaning, description: destTranslation.description})}\n`)
-					}
-				});
-				destTransUnits += transUnits;
-			}
-
-			console.log(`Processed ${srcTranslations.length} source translations, ${dest} ${lang} translations, found ${matches} matches`);
-			let newXml = `${header}${destTransUnits}${footer}`
-			fs.writeFileSync(path.join(outputPath, 'messages.' + lang + '.xlf'), newXml, {encoding: 'utf-8'});
-		}
-	} catch (err) {
-		console.error(err);
-	}
-})()
-
-function getTranslations(srcJson) {
-	const translations = [];
-	traverseTranslations(srcJson, transUnit =>
-		translations.push(parseTransUnit(transUnit))
-	);
-	return translations;
+if (xlfPaths.length === 0 || localizeLangs.length === 0 || !outputPath || !srcPath) {
+  console.log('Inputs not provided');
+  return;
 }
 
-function traverseTranslations(xlfJson, transUnitCallback) {
-	const xliff = xlfJson.xliff;
-	if (!xliff) return;
-	if (xliff.$.xmlns.indexOf("urn:oasis:names:tc:xliff:document") < 0) {
-		console.error('invalid XLF file')
-		return;
-	}
-	for (let transUnit of xliff.file[0].body[0]['trans-unit']) {
-		transUnitCallback(transUnit);
-	}
-}
+try {
+  for (let lang of localizeLangs) {
+    let targetLang = null;
+    const destPath = path.join(outputPath, `messages.${lang}.xlf`);
+    let destFile = fs.readFileSync(destPath, {encoding: 'utf-8'});
+    const destXlf = libxmljs.parseXml(destFile);
+    const destTransUnits = destXlf.find('//ns:trans-unit', {ns});
+    targetLang = destXlf.get('//ns:file', {ns}).attr('target-language').value();
+    const srcXlfDocs = [];
+    for (let xlfPath of xlfPaths) {
+      const oldPath = path.join(xlfPath, `messages.${lang}.xlf`);
+      let oldFile = fs.readFileSync(oldPath, {encoding: 'utf-8'});
+      const oldXlf = libxmljs.parseXml(oldFile);
+      srcXlfDocs.push(oldXlf);
+    }
 
-function parseTransUnit(transUnitJson) {
+    for (let transUnit of destTransUnits) {
+      const id = transUnit.attr('id').value();
+      const notes = [];
+      const description = transUnit.get(`ns:note[@from='description']`, {ns});
+      if (description) {
+        notes.push(...description.text().split('|'));
+      }
+      const meaning = transUnit.get(`ns:note[@from='meaning']`, {ns});
+      if (meaning) {
+        notes.push(...meaning.text().split('|'));
+      }
+      let match;
+      for (let srcDoc of srcXlfDocs) {
+        if (!match) {
+          match = srcDoc.get(`//ns:trans-unit[@id='${id}']`, {ns});
+          if (!match) {
+            const predicate = notes.map(note => `ns:note="${note}"`).join(' and ');
+            match = srcDoc.get(`//ns:trans-unit[${predicate}]`, {ns});
+          }
+          if (!match) {
+            match = srcDoc.get(`//ns:trans-unit[ns:note="${notes.join('|')}" or ns:note="${notes.reverse().join('|')}"]`, {ns});
+          }
+        }
+      }
+      if (match) {
+        const destText = transUnit.get('ns:source', {ns}).toString();
+        const matchText = match.get('ns:source', {ns}).toString();
 
-	const translation = {
-		id: transUnitJson.$.id,
-		source: transUnitJson.source
-	};
-	for (let note of transUnitJson.note) {
-		if (note.$.from === 'description') {
-			translation.description = note._;
-		} else if (note.$.from === 'meaning') {
-			translation.meaning = note._;
-		}
+        if (destText.indexOf('<x') >= 0 || matchText.indexOf('<x') >= 0) {
+          console.warn(lang, `Cannot migrate text that changed interpolations`, notes, `dest:'${destText}', src: '${matchText}'`);
 
-		const split = (text) => {
-			let parts = text.split('|')
-			if (parts.length === 2) {
-				translation.meaning = parts[0];
-				translation.description = parts[1];
-			}
-		}
+        } else {
+          transUnit.get('ns:target', {ns}).replace(match.get('ns:target', {ns}));
+        }
+      }
+    }
 
-		// normalize different formats of i18n descriptions
-		if (translation.meaning && !translation.description && translation.meaning.indexOf('|' >= 0)) {
-			split(translation.meaning);
-		}
-
-		if (translation.description && !translation.meaning && translation.description.indexOf('|' >= 0)) {
-			split(translation.description);
-		}
-	}
-	return translation;
+    fs.writeFileSync(path.join(outputPath, 'messages.' + lang + '.xlf'), destXlf.toString(), {encoding: 'utf-8'});
+  }
+} catch (err) {
+  console.error(err);
 }

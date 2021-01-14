@@ -1,10 +1,10 @@
 {
   "name": "i18n-migration-help",
   "scripts": {
-     "merge-xlf": "node src/merge-xlf.js"
+    "merge-xlf": "node src/merge-xlf.js"
   },
   "private": true,
   "devDependencies": {
-    "xml2js": "^0.4.23"
+    "libxmljs": "^0.19.7"
   }
 }
